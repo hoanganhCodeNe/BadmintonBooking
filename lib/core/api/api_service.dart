@@ -1,0 +1,204 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+class ApiService {
+  // Đổi URL này theo địa chỉ server của bạn
+  // Android Emulator: http://10.0.2.2:5000
+  // iOS Simulator / Web: http://localhost:5000
+  // Thiết bị thật: http://<IP_MÁY_TÍNH>:5000
+  static const String baseUrl = 'http://10.0.2.2:5000/api';
+
+  // ==================== USER ====================
+
+  static Future<Map<String, dynamic>> login(String phone, String password) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/users/login'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'phone': phone, 'password': password}),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+
+    if (response.statusCode == 401) {
+      final body = jsonDecode(response.body);
+      throw Exception(body['message'] ?? 'Sai số điện thoại hoặc mật khẩu');
+    }
+
+    throw Exception('Lỗi server: ${response.statusCode}');
+  }
+
+  static Future<Map<String, dynamic>?> register(String name, String phone, String password) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/users/register'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'name': name, 'phone': phone, 'password': password}),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+
+    if (response.statusCode == 400) {
+      final body = jsonDecode(response.body);
+      throw Exception(body['message'] ?? 'Đăng ký thất bại');
+    }
+
+    throw Exception('Lỗi server: ${response.statusCode}');
+  }
+
+  // ==================== ADMIN - USER MANAGEMENT ====================
+
+  static Future<List<Map<String, dynamic>>> getAllUsers() async {
+    final response = await http.get(Uri.parse('$baseUrl/users'));
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    }
+    return [];
+  }
+
+  static Future<bool> updateUserRole(int userId, String role) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/users/$userId/role'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'role': role}),
+    );
+    return response.statusCode == 200;
+  }
+
+  static Future<bool> deleteUser(int userId) async {
+    final response = await http.delete(Uri.parse('$baseUrl/users/$userId'));
+    return response.statusCode == 200;
+  }
+
+  // ==================== COURT ====================
+
+  static Future<List<Map<String, dynamic>>> getAllCourts() async {
+    final response = await http.get(Uri.parse('$baseUrl/courts'));
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    }
+    return [];
+  }
+
+  static Future<List<Map<String, dynamic>>> getCourtsByOwner(int ownerId) async {
+    final response = await http.get(Uri.parse('$baseUrl/courts/owner/$ownerId'));
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    }
+    return [];
+  }
+
+  static Future<bool> createCourt(String name, String address, int ownerId) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/courts'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'name': name, 'address': address, 'ownerId': ownerId}),
+    );
+    return response.statusCode == 200;
+  }
+
+  static Future<bool> updateCourt(int courtId, String name, String address) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/courts/$courtId'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'name': name, 'address': address}),
+    );
+    return response.statusCode == 200;
+  }
+
+  // ==================== SUBCOURT ====================
+
+  static Future<List<Map<String, dynamic>>> getSubCourts(int courtId) async {
+    final response = await http.get(Uri.parse('$baseUrl/subcourts?courtId=$courtId'));
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    }
+    return [];
+  }
+
+  // ==================== TIMESLOT ====================
+
+  static Future<List<Map<String, dynamic>>> getTimeSlots(int subCourtId, String date) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/timeslots?subCourtId=$subCourtId&date=$date'),
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    }
+    return [];
+  }
+
+  static Future<void> generateTimeSlots(int subCourtId, String date) async {
+    await http.post(
+      Uri.parse('$baseUrl/timeslots/generate?subCourtId=$subCourtId&date=$date'),
+    );
+  }
+
+  // ==================== BOOKING ====================
+
+  static Future<bool> bookCourt(int userId, int timeSlotId) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/bookings'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'userId': userId, 'timeSlotId': timeSlotId}),
+    );
+    return response.statusCode == 200;
+  }
+
+  static Future<List<Map<String, dynamic>>> getBookingHistory(int userId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/bookings/history/$userId'),
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    }
+    return [];
+  }
+
+  static Future<List<Map<String, dynamic>>> getOwnerBookings(int ownerId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/bookings/owner/$ownerId'),
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    }
+    return [];
+  }
+
+  static Future<bool> cancelBooking(int bookingId) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/bookings/$bookingId/cancel'),
+    );
+    return response.statusCode == 200;
+  }
+
+  static Future<bool> approveBooking(int bookingId) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/bookings/$bookingId/approve'),
+    );
+    return response.statusCode == 200;
+  }
+
+  static Future<bool> rejectBooking(int bookingId) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/bookings/$bookingId/reject'),
+    );
+    return response.statusCode == 200;
+  }
+}
