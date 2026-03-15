@@ -6,6 +6,7 @@ class BookingHistory {
   final String startTime;
   final String endTime;
   final String status;
+  final String rejectReason;
   final String createdAt;
 
   BookingHistory({
@@ -16,6 +17,7 @@ class BookingHistory {
     required this.startTime,
     required this.endTime,
     required this.status,
+    required this.rejectReason,
     required this.createdAt,
   });
 
@@ -28,6 +30,7 @@ class BookingHistory {
       startTime: json['startTime'],
       endTime: json['endTime'],
       status: json['status'] ?? 'pending',
+      rejectReason: json['rejectReason'] ?? '',
       createdAt: json['createdAt'],
     );
   }

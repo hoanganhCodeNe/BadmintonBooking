@@ -28,11 +28,30 @@ public class BookingsController : ControllerBase
         if (slot.IsBooked)
             return BadRequest(new { message = "Khung giờ đã được đặt" });
 
-        // Kiểm tra đã có booking pending cho slot này chưa
-        var existingPending = await _context.Bookings
-            .AnyAsync(b => b.TimeSlotId == dto.TimeSlotId && b.Status == "pending");
-        if (existingPending)
-            return BadRequest(new { message = "Khung giờ đang chờ duyệt" });
+        // Chặn booking trùng giờ thực sự cho cùng người dùng ở cùng sân con và ngày.
+        // Lưu ý: booking liền kề (17:00-18:00 và 18:00-19:00) vẫn được phép.
+        if (!TimeSpan.TryParse(slot.StartTime, out var newStart) ||
+            !TimeSpan.TryParse(slot.EndTime, out var newEnd))
+        {
+            return BadRequest(new { message = "Khung giờ không hợp lệ" });
+        }
+
+        var activeBookings = await _context.Bookings
+            .Include(b => b.TimeSlot)
+            .Where(b => b.UserId == dto.UserId &&
+                        (b.Status == "pending" || b.Status == "approved") &&
+                        b.TimeSlot != null &&
+                        b.TimeSlot.Date == slot.Date &&
+                        b.TimeSlot.SubCourtId == slot.SubCourtId)
+            .ToListAsync();
+
+        var hasOverlap = activeBookings.Any(b =>
+            TimeSpan.TryParse(b.TimeSlot!.StartTime, out var existedStart) &&
+            TimeSpan.TryParse(b.TimeSlot.EndTime, out var existedEnd) &&
+            newStart < existedEnd && existedStart < newEnd);
+
+        if (hasOverlap)
+            return BadRequest(new { message = "Bạn đã có lịch trùng giờ ở sân này" });
 
         var booking = new Booking
         {
@@ -62,12 +81,31 @@ public class BookingsController : ControllerBase
         if (booking.Status != "pending")
             return BadRequest(new { message = "Chỉ duyệt được đơn đang chờ" });
 
+        var alreadyApproved = await _context.Bookings
+            .AnyAsync(b => b.TimeSlotId == booking.TimeSlotId && b.Status == "approved");
+        if (alreadyApproved)
+            return BadRequest(new { message = "Khung giờ này đã được duyệt cho người khác" });
+
         booking.Status = "approved";
         if (booking.TimeSlot != null)
             booking.TimeSlot.IsBooked = true;
 
+        // Khi đã duyệt 1 người cho khung giờ này, tự động từ chối các yêu cầu pending còn lại.
+        var otherPending = await _context.Bookings
+            .Where(b => b.TimeSlotId == booking.TimeSlotId && b.Status == "pending" && b.Id != booking.Id)
+            .ToListAsync();
+
+        foreach (var item in otherPending)
+        {
+            item.Status = "rejected";
+        }
+
         await _context.SaveChangesAsync();
-        return Ok(new { message = "Đã duyệt đơn đặt sân" });
+        return Ok(new
+        {
+            message = "Đã duyệt đơn đặt sân",
+            rejectedCount = otherPending.Count
+        });
     }
 
     // PUT: api/bookings/{id}/reject
@@ -108,6 +146,11 @@ public class BookingsController : ControllerBase
                 StartTime = b.TimeSlot.StartTime,
                 EndTime = b.TimeSlot.EndTime,
                 Status = b.Status,
+                RejectReason = b.Status == "rejected"
+                    ? (b.TimeSlot.IsBooked
+                        ? "Khung giờ đã được duyệt cho người chơi khác"
+                        : "Chủ sân đã từ chối yêu cầu của bạn")
+                    : string.Empty,
                 CreatedAt = b.CreatedAt.ToString("yyyy-MM-dd HH:mm")
             })
             .ToListAsync();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../models/court.dart';
 import '../../models/user.dart';
 import '../../models/sub_court.dart';
@@ -133,6 +134,22 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> with SingleTicker
     });
   }
 
+  Future<void> _openMapByAddress(String address) async {
+    final encoded = Uri.encodeComponent(address);
+    final mapsUri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$encoded');
+
+    final launched = await launchUrl(
+      mapsUri,
+      mode: LaunchMode.externalApplication,
+    );
+
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Không thể mở Google Maps")),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -162,7 +179,18 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> with SingleTicker
                             children: [
                               const Icon(Icons.location_on, size: 16, color: Colors.grey),
                               const SizedBox(width: 4),
-                              Expanded(child: Text(widget.court.address)),
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () => _openMapByAddress(widget.court.address),
+                                  child: Text(
+                                    widget.court.address,
+                                    style: const TextStyle(
+                                      color: Colors.blue,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ],
@@ -197,7 +225,8 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> with SingleTicker
                       indicatorColor: Colors.green,
                       tabs: _subCourts.map((sc) {
                         final slots = _timeslotsMap[sc.id] ?? [];
-                        final freeCount = slots.where((s) => !s.isBooked).length;
+                        final sortedSlots = _sortSlots(slots);
+                        final freeCount = sortedSlots.where((s) => !s.isBooked && !_isSlotPast(s)).length;
                         return Tab(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -220,7 +249,7 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> with SingleTicker
                           : TabBarView(
                               controller: _tabController,
                               children: _subCourts.map((sc) {
-                                final slots = _timeslotsMap[sc.id] ?? [];
+                                final slots = _sortSlots(_timeslotsMap[sc.id] ?? []);
                                 if (slots.isEmpty) {
                                   return const Center(child: Text("Không có khung giờ"));
                                 }
@@ -371,12 +400,77 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> with SingleTicker
     return Column(children: rows);
   }
 
+  // ==================== HELPERS ====================
+
+  int _parseTimeToMinutes(String time) {
+    final parts = time.split(':');
+    return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+  }
+
+  bool get _isToday {
+    final now = DateTime.now();
+    return _selectedDate.year == now.year &&
+        _selectedDate.month == now.month &&
+        _selectedDate.day == now.day;
+  }
+
+  List<TimeSlot> _sortSlots(List<TimeSlot> slots) {
+    final sorted = List<TimeSlot>.from(slots)
+      ..sort((a, b) => _parseTimeToMinutes(a.startTime).compareTo(_parseTimeToMinutes(b.startTime)));
+    return sorted;
+  }
+
+  bool _isSlotPast(TimeSlot slot) {
+    if (!_isToday) return false;
+    final now = DateTime.now();
+    final nowMinutes = now.hour * 60 + now.minute;
+    return _parseTimeToMinutes(slot.endTime) <= nowMinutes;
+  }
+
+  bool _isSlotCurrent(TimeSlot slot) {
+    if (!_isToday) return false;
+    final now = DateTime.now();
+    final nowMinutes = now.hour * 60 + now.minute;
+    return _parseTimeToMinutes(slot.startTime) <= nowMinutes &&
+        nowMinutes < _parseTimeToMinutes(slot.endTime);
+  }
+
   // ==================== SLOT TILE ====================
 
   Widget _buildSlotTile(TimeSlot slot) {
-    final isFree = !slot.isBooked;
+    final isPast = _isSlotPast(slot);
+    final isCurrent = _isSlotCurrent(slot);
+    final canBook = !slot.isBooked && !isPast && !isCurrent;
+
+    Color bgColor;
+    Color borderColor;
+    Color textColor;
+    String label;
+
+    if (isPast) {
+      bgColor = Colors.grey.shade200;
+      borderColor = Colors.grey.shade400;
+      textColor = Colors.grey;
+      label = "Đã qua";
+    } else if (slot.isBooked) {
+      bgColor = Colors.red.shade50;
+      borderColor = Colors.red.shade200;
+      textColor = Colors.red;
+      label = "Đã đặt";
+    } else if (isCurrent) {
+      bgColor = Colors.orange.shade50;
+      borderColor = Colors.orange;
+      textColor = Colors.orange.shade800;
+      label = "Đang diễn ra";
+    } else {
+      bgColor = Colors.green.shade50;
+      borderColor = Colors.green;
+      textColor = Colors.green.shade800;
+      label = "Trống";
+    }
+
     return GestureDetector(
-      onTap: isFree
+      onTap: canBook
           ? () {
               showDialog(
                 context: context,
@@ -399,14 +493,24 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> with SingleTicker
                 ),
               );
             }
-          : null,
+          : () {
+              String msg;
+              if (isPast) {
+                msg = "Khung giờ ${slot.startTime} - ${slot.endTime} đã qua, không thể đặt!";
+              } else if (isCurrent) {
+                msg = "Khung giờ ${slot.startTime} - ${slot.endTime} đang diễn ra, không thể đặt!";
+              } else {
+                msg = "Khung giờ ${slot.startTime} - ${slot.endTime} đã có người đặt!";
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(msg), backgroundColor: Colors.orange),
+              );
+            },
       child: Container(
         decoration: BoxDecoration(
-          color: isFree ? Colors.green.shade50 : Colors.red.shade50,
+          color: bgColor,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isFree ? Colors.green : Colors.red.shade200,
-          ),
+          border: Border.all(color: borderColor),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -416,15 +520,13 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> with SingleTicker
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: isFree ? Colors.green.shade800 : Colors.red,
+                color: textColor,
+                decoration: isPast ? TextDecoration.lineThrough : null,
               ),
             ),
             Text(
-              isFree ? "Trống" : "Đã đặt",
-              style: TextStyle(
-                fontSize: 11,
-                color: isFree ? Colors.green : Colors.red,
-              ),
+              label,
+              style: TextStyle(fontSize: 11, color: textColor),
             ),
           ],
         ),

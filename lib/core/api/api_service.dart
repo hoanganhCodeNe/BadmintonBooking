@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:http/http.dart' as http;
 
 class ApiService {
@@ -6,7 +7,9 @@ class ApiService {
   // Android Emulator: http://10.0.2.2:5000
   // iOS Simulator / Web: http://localhost:5000
   // Thiết bị thật: http://<IP_MÁY_TÍNH>:5000
-  static const String baseUrl = 'http://10.0.2.2:5000/api';
+  // Current LAN IP of development machine for physical device testing.
+  static const String baseUrl = 'http://192.168.12.102:5000/api';
+  static const Duration _requestTimeout = Duration(seconds: 12);
 
   // ==================== USER ====================
 
@@ -15,7 +18,7 @@ class ApiService {
       Uri.parse('$baseUrl/users/login'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'phone': phone, 'password': password}),
-    );
+    ).timeout(_requestTimeout);
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -34,7 +37,7 @@ class ApiService {
       Uri.parse('$baseUrl/users/register'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'name': name, 'phone': phone, 'password': password}),
-    );
+    ).timeout(_requestTimeout);
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -114,6 +117,11 @@ class ApiService {
     return response.statusCode == 200;
   }
 
+  static Future<bool> deleteCourt(int courtId) async {
+    final response = await http.delete(Uri.parse('$baseUrl/courts/$courtId'));
+    return response.statusCode == 200;
+  }
+
   // ==================== SUBCOURT ====================
 
   static Future<List<Map<String, dynamic>>> getSubCourts(int courtId) async {
@@ -124,6 +132,29 @@ class ApiService {
       return data.cast<Map<String, dynamic>>();
     }
     return [];
+  }
+
+  static Future<bool> createSubCourt(String name, int courtId) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/subcourts'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'name': name, 'courtId': courtId}),
+    );
+    return response.statusCode == 200;
+  }
+
+  static Future<bool> updateSubCourt(int subCourtId, String name, int courtId) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/subcourts/$subCourtId'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'name': name, 'courtId': courtId}),
+    );
+    return response.statusCode == 200;
+  }
+
+  static Future<bool> deleteSubCourt(int subCourtId) async {
+    final response = await http.delete(Uri.parse('$baseUrl/subcourts/$subCourtId'));
+    return response.statusCode == 200;
   }
 
   // ==================== TIMESLOT ====================
@@ -154,7 +185,17 @@ class ApiService {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'userId': userId, 'timeSlotId': timeSlotId}),
     );
-    return response.statusCode == 200;
+
+    if (response.statusCode == 200) {
+      return true;
+    }
+
+    if (response.statusCode == 400 || response.statusCode == 404) {
+      final body = jsonDecode(response.body);
+      throw Exception(body['message'] ?? 'Đặt sân thất bại');
+    }
+
+    throw Exception('Lỗi server: ${response.statusCode}');
   }
 
   static Future<List<Map<String, dynamic>>> getBookingHistory(int userId) async {

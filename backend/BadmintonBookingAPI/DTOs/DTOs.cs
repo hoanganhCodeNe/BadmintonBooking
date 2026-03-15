@@ -54,6 +54,7 @@ public class BookingHistoryDto
     public string StartTime { get; set; } = string.Empty;
     public string EndTime { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
+    public string RejectReason { get; set; } = string.Empty;
     public string CreatedAt { get; set; } = string.Empty;
 }
 

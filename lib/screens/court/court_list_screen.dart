@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../models/court.dart';
 import '../../models/user.dart';
 import '../../repositories/court_repository.dart';
@@ -42,6 +43,22 @@ class _CourtListScreenState extends State<CourtListScreen> {
     }
   }
 
+  Future<void> _openMapByAddress(String address) async {
+    final encoded = Uri.encodeComponent(address);
+    final mapsUri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$encoded');
+
+    final launched = await launchUrl(
+      mapsUri,
+      mode: LaunchMode.externalApplication,
+    );
+
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Không thể mở Google Maps")),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
 
@@ -64,7 +81,16 @@ class _CourtListScreenState extends State<CourtListScreen> {
           child: ListTile(
             leading: const Icon(Icons.sports_tennis, color: Colors.green),
             title: Text(court.name),
-            subtitle: Text(court.address),
+            subtitle: InkWell(
+              onTap: () => _openMapByAddress(court.address),
+              child: Text(
+                court.address,
+                style: const TextStyle(
+                  color: Colors.blue,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
             trailing: const Icon(Icons.arrow_forward_ios),
 
             onTap: () {

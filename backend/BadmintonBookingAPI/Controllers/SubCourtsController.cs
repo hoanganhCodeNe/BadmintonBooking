@@ -48,6 +48,24 @@ public class SubCourtsController : ControllerBase
         return Ok(subCourt);
     }
 
+    // PUT: api/subcourts/{id}
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateSubCourt(int id, [FromBody] SubCourtDto dto)
+    {
+        var subCourt = await _context.SubCourts.FindAsync(id);
+        if (subCourt == null)
+            return NotFound(new { message = "Không tìm thấy sân con" });
+
+        var name = dto.Name.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+            return BadRequest(new { message = "Tên sân con không được để trống" });
+
+        subCourt.Name = name;
+        await _context.SaveChangesAsync();
+
+        return Ok(subCourt);
+    }
+
     // DELETE: api/subcourts/{id}
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteSubCourt(int id)

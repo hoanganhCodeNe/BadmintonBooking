@@ -35,4 +35,5 @@ if (app.Environment.IsDevelopment())
 app.UseCors("AllowAll");
 app.MapControllers();
 
-app.Run();
+// Listen on all network interfaces so physical devices can reach the API over LAN.
+app.Run("http://0.0.0.0:5000");

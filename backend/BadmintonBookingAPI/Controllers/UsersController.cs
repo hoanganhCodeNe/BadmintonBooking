@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using BadmintonBookingAPI.Data;
 using BadmintonBookingAPI.DTOs;
 using BadmintonBookingAPI.Models;
+using System.Text.RegularExpressions;
 
 namespace BadmintonBookingAPI.Controllers;
 
@@ -11,6 +12,17 @@ namespace BadmintonBookingAPI.Controllers;
 public class UsersController : ControllerBase
 {
     private readonly AppDbContext _context;
+
+    private static string NormalizePhone(string phone)
+    {
+        var normalized = phone.Trim().Replace(" ", "").Replace(".", "").Replace("-", "");
+        if (normalized.StartsWith("+84"))
+            normalized = "0" + normalized[3..];
+        else if (normalized.StartsWith("84"))
+            normalized = "0" + normalized[2..];
+
+        return normalized;
+    }
 
     public UsersController(AppDbContext context)
     {
@@ -21,8 +33,14 @@ public class UsersController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
+        var phone = NormalizePhone(dto.Phone);
+        var password = dto.Password.Trim();
+
+        if (string.IsNullOrWhiteSpace(phone) || string.IsNullOrWhiteSpace(password))
+            return BadRequest(new { message = "Vui lòng nhập số điện thoại và mật khẩu" });
+
         var user = await _context.Users
-            .FirstOrDefaultAsync(u => u.Phone == dto.Phone && u.Password == dto.Password);
+            .FirstOrDefaultAsync(u => u.Phone == phone && u.Password == password);
 
         if (user == null)
             return Unauthorized(new { message = "Sai số điện thoại hoặc mật khẩu" });
@@ -40,15 +58,28 @@ public class UsersController : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterDto dto)
     {
-        var exists = await _context.Users.AnyAsync(u => u.Phone == dto.Phone);
+        var name = dto.Name.Trim();
+        var phone = NormalizePhone(dto.Phone);
+        var password = dto.Password.Trim();
+
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(phone) || string.IsNullOrWhiteSpace(password))
+            return BadRequest(new { message = "Vui lòng điền đầy đủ thông tin" });
+
+        if (!Regex.IsMatch(phone, @"^0\d{9,10}$"))
+            return BadRequest(new { message = "Số điện thoại không hợp lệ" });
+
+        if (!Regex.IsMatch(password, @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$"))
+            return BadRequest(new { message = "Mật khẩu phải có ít nhất 6 ký tự, gồm chữ hoa, chữ thường và số" });
+
+        var exists = await _context.Users.AnyAsync(u => u.Phone == phone);
         if (exists)
             return BadRequest(new { message = "Số điện thoại đã được đăng ký" });
 
         var user = new User
         {
-            Name = dto.Name,
-            Phone = dto.Phone,
-            Password = dto.Password,
+            Name = name,
+            Phone = phone,
+            Password = password,
             Role = "player"
         };
 

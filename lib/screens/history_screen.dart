@@ -137,6 +137,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   "${booking.date}  |  ${booking.startTime} - ${booking.endTime}",
                   style: const TextStyle(fontSize: 14),
                 ),
+                if (booking.status == 'rejected' && booking.rejectReason.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    "Ly do: ${booking.rejectReason}",
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.red,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 4),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
