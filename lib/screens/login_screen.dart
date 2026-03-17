@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/storage/session_manager.dart';
 import '../repositories/user_repository.dart';
 import 'register_screen.dart';
 import 'home_screen.dart';
@@ -195,6 +196,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   try {
                                     final repo = UserRepository();
                                     final user = await repo.login(phone, password);
+                                    await SessionManager.saveUser(user);
 
                                     if (!mounted) return;
                                     setState(() => _isLoading = false);

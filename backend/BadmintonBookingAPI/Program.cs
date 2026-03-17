@@ -25,6 +25,11 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+var webRootPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+Directory.CreateDirectory(webRootPath);
+var uploadPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot", "uploads", "courts");
+Directory.CreateDirectory(uploadPath);
+
 // Swagger
 if (app.Environment.IsDevelopment())
 {
@@ -33,6 +38,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowAll");
+app.UseStaticFiles();
 app.MapControllers();
 
 // Listen on all network interfaces so physical devices can reach the API over LAN.

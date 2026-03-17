@@ -149,6 +149,71 @@ public class UsersController : ControllerBase
         });
     }
 
+    // PUT: api/users/{id}/profile
+    [HttpPut("{id}/profile")]
+    public async Task<IActionResult> UpdateProfile(int id, [FromBody] UpdateProfileDto dto)
+    {
+        var user = await _context.Users.FindAsync(id);
+        if (user == null)
+            return NotFound(new { message = "Không tìm thấy người dùng" });
+
+        var name = dto.Name.Trim();
+        var phone = NormalizePhone(dto.Phone);
+
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(phone))
+            return BadRequest(new { message = "Vui lòng điền đầy đủ thông tin" });
+
+        if (!Regex.IsMatch(phone, @"^0\d{9,10}$"))
+            return BadRequest(new { message = "Số điện thoại không hợp lệ" });
+
+        var phoneExists = await _context.Users
+            .AnyAsync(u => u.Id != id && u.Phone == phone);
+
+        if (phoneExists)
+            return BadRequest(new { message = "Số điện thoại đã được đăng ký" });
+
+        user.Name = name;
+        user.Phone = phone;
+        await _context.SaveChangesAsync();
+
+        return Ok(new UserDto
+        {
+            Id = user.Id,
+            Name = user.Name,
+            Phone = user.Phone,
+            Role = user.Role
+        });
+    }
+
+    // PUT: api/users/{id}/password
+    [HttpPut("{id}/password")]
+    public async Task<IActionResult> ChangePassword(int id, [FromBody] ChangePasswordDto dto)
+    {
+        var user = await _context.Users.FindAsync(id);
+        if (user == null)
+            return NotFound(new { message = "Không tìm thấy người dùng" });
+
+        var currentPassword = dto.CurrentPassword.Trim();
+        var newPassword = dto.NewPassword.Trim();
+
+        if (string.IsNullOrWhiteSpace(currentPassword) || string.IsNullOrWhiteSpace(newPassword))
+            return BadRequest(new { message = "Vui lòng nhập đầy đủ mật khẩu" });
+
+        if (user.Password != currentPassword)
+            return BadRequest(new { message = "Mật khẩu hiện tại không đúng" });
+
+        if (!Regex.IsMatch(newPassword, @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$"))
+            return BadRequest(new { message = "Mật khẩu mới phải có ít nhất 6 ký tự, gồm chữ hoa, chữ thường và số" });
+
+        if (currentPassword == newPassword)
+            return BadRequest(new { message = "Mật khẩu mới phải khác mật khẩu hiện tại" });
+
+        user.Password = newPassword;
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Đổi mật khẩu thành công" });
+    }
+
     // DELETE: api/users/{id}
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteUser(int id)

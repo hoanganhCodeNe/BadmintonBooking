@@ -32,11 +32,42 @@ public class UpdateRoleDto
     public string Role { get; set; } = string.Empty;
 }
 
+public class UpdateProfileDto
+{
+    public string Name { get; set; } = string.Empty;
+    public string Phone { get; set; } = string.Empty;
+}
+
+public class ChangePasswordDto
+{
+    public string CurrentPassword { get; set; } = string.Empty;
+    public string NewPassword { get; set; } = string.Empty;
+}
+
 public class CourtDto
 {
     public string Name { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
     public int OwnerId { get; set; }
+    public string? ImageUrl { get; set; }
+    public List<string>? ImageUrls { get; set; }
+    public decimal MorningPrice { get; set; } = 20000;
+    public decimal AfternoonPrice { get; set; } = 50000;
+    public decimal EveningPrice { get; set; } = 80000;
+}
+
+public class CourtListDto
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Address { get; set; } = string.Empty;
+    public int OwnerId { get; set; }
+    public int SubCourtCount { get; set; }
+    public string? ImageUrl { get; set; }
+    public List<string> ImageUrls { get; set; } = new();
+    public decimal MorningPrice { get; set; }
+    public decimal AfternoonPrice { get; set; }
+    public decimal EveningPrice { get; set; }
 }
 
 public class SubCourtDto
@@ -76,4 +107,9 @@ public class UpdateCourtDto
 {
     public string Name { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
+    public string? ImageUrl { get; set; }
+    public List<string>? ImageUrls { get; set; }
+    public decimal MorningPrice { get; set; } = 20000;
+    public decimal AfternoonPrice { get; set; } = 50000;
+    public decimal EveningPrice { get; set; } = 80000;
 }

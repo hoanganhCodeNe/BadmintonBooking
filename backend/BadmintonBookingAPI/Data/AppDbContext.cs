@@ -28,6 +28,10 @@ public class AppDbContext : DbContext
                   .WithMany(u => u.Courts)
                   .HasForeignKey(c => c.OwnerId)
                   .OnDelete(DeleteBehavior.Restrict);
+
+            entity.Property(c => c.MorningPrice).HasColumnType("decimal(18,2)");
+            entity.Property(c => c.AfternoonPrice).HasColumnType("decimal(18,2)");
+            entity.Property(c => c.EveningPrice).HasColumnType("decimal(18,2)");
         });
 
         modelBuilder.Entity<SubCourt>(entity =>

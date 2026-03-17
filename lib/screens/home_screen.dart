@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import '../core/storage/session_manager.dart';
 import '../models/user.dart';
 import 'court/court_list_screen.dart';
 import 'history_screen.dart';
 import 'admin_user_screen.dart';
 import 'owner_court_screen.dart';
 import 'owner_booking_screen.dart';
+import 'profile_screen.dart';
 import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -18,24 +20,36 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
-
-  late final List<Widget> _pages;
-  late final List<BottomNavigationBarItem> _navItems;
+  late User _currentUser;
 
   @override
   void initState() {
     super.initState();
-    final role = widget.user.role;
+    _currentUser = widget.user;
+  }
 
-    _pages = [
-      CourtListScreen(user: widget.user),
-      HistoryScreen(user: widget.user),
-      if (role == 'owner') OwnerCourtScreen(user: widget.user),
-      if (role == 'owner') OwnerBookingScreen(user: widget.user),
-      if (role == 'admin') AdminUserScreen(currentUser: widget.user),
+  List<Widget> get _pages {
+    final role = _currentUser.role;
+    return [
+      CourtListScreen(user: _currentUser),
+      HistoryScreen(user: _currentUser),
+      if (role == 'owner') OwnerCourtScreen(user: _currentUser),
+      if (role == 'owner') OwnerBookingScreen(user: _currentUser),
+      if (role == 'owner' || role == 'player')
+        ProfileScreen(
+          user: _currentUser,
+          onUserUpdated: (updatedUser) {
+            if (!mounted) return;
+            setState(() => _currentUser = updatedUser);
+          },
+        ),
+      if (role == 'admin') AdminUserScreen(currentUser: _currentUser),
     ];
+  }
 
-    _navItems = [
+  List<BottomNavigationBarItem> get _navItems {
+    final role = _currentUser.role;
+    return [
       const BottomNavigationBarItem(
         icon: Icon(Icons.sports_tennis),
         label: "Sân cầu",
@@ -54,6 +68,11 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: Icon(Icons.receipt_long),
           label: "Đơn đặt",
         ),
+      if (role == 'owner' || role == 'player')
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.person_outline),
+          label: "Bạn",
+        ),
       if (role == 'admin')
         const BottomNavigationBarItem(
           icon: Icon(Icons.admin_panel_settings),
@@ -66,11 +85,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Xin chào, ${widget.user.name}"),
+        title: Text("Xin chào, ${_currentUser.name}"),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () {
+            onPressed: () async {
+              await SessionManager.clearSession();
+              if (!context.mounted) return;
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (_) => const LoginScreen()),

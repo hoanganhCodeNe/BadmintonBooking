@@ -150,8 +150,204 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> with SingleTicker
     }
   }
 
+  void _openImageViewer(List<String> gallery, int initialIndex) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black,
+      builder: (_) {
+        final pageController = PageController(initialPage: initialIndex);
+        var currentIndex = initialIndex;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Scaffold(
+              backgroundColor: Colors.black,
+              body: SafeArea(
+                child: Stack(
+                  children: [
+                    PageView.builder(
+                      controller: pageController,
+                      itemCount: gallery.length,
+                      onPageChanged: (index) => setDialogState(() => currentIndex = index),
+                      itemBuilder: (context, index) {
+                        return InteractiveViewer(
+                          minScale: 1,
+                          maxScale: 4,
+                          child: Center(
+                            child: Image.network(
+                              gallery[index],
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) => const Icon(
+                                Icons.broken_image,
+                                size: 72,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 18,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '${currentIndex + 1}/${gallery.length}',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildCourtInfoSection(List<String> gallery) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      color: Colors.green.shade50,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.court.name,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          if (gallery.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Ảnh sân',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  '${gallery.length} ảnh',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 140,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: gallery.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 10),
+                itemBuilder: (context, index) {
+                  return GestureDetector(
+                    onTap: () => _openImageViewer(gallery, index),
+                    child: Hero(
+                      tag: 'court-image-$index-${widget.court.id}',
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: Image.network(
+                          gallery[index],
+                          width: 220,
+                          height: 140,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, progress) {
+                            if (progress == null) return child;
+                            return Container(
+                              width: 220,
+                              height: 140,
+                              color: Colors.green.shade100,
+                              child: const Center(child: CircularProgressIndicator()),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            width: 220,
+                            height: 140,
+                            color: Colors.green.shade100,
+                            child: const Center(
+                              child: Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.location_on, size: 16, color: Colors.grey),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  widget.court.address,
+                  style: const TextStyle(color: Color(0xFF4E6458), height: 1.35),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.green.shade100),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildPriceTag('Sáng\n6h-11h', widget.court.morningPrice, Colors.blue.shade700),
+                Container(width: 1, height: 32, color: Colors.green.shade100),
+                _buildPriceTag('Chiều\n11h-17h', widget.court.afternoonPrice, Colors.orange.shade700),
+                Container(width: 1, height: 32, color: Colors.green.shade100),
+                _buildPriceTag('Tối\n17h+', widget.court.eveningPrice, Colors.purple.shade700),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => _openMapByAddress(widget.court.address),
+            icon: const Icon(Icons.map_outlined, size: 18),
+            label: const Text('Mở Google Maps'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.green.shade800,
+              side: BorderSide(color: Colors.green.shade200),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final gallery = widget.court.gallery;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.court.name),
@@ -160,118 +356,90 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> with SingleTicker
           ? const Center(child: CircularProgressIndicator())
           : _subCourts.isEmpty
               ? const Center(child: Text("Chưa có sân con nào"))
-              : Column(
-                  children: [
-                    // ===== THÔNG TIN SÂN =====
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      color: Colors.green.shade50,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.court.name,
-                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Icon(Icons.location_on, size: 16, color: Colors.grey),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: InkWell(
-                                  onTap: () => _openMapByAddress(widget.court.address),
-                                  child: Text(
-                                    widget.court.address,
-                                    style: const TextStyle(
-                                      color: Colors.blue,
-                                      decoration: TextDecoration.underline,
-                                    ),
+              : NestedScrollView(
+                  headerSliverBuilder: (context, innerBoxIsScrolled) {
+                    return [
+                      SliverToBoxAdapter(child: _buildCourtInfoSection(gallery)),
+                      SliverToBoxAdapter(child: _buildCalendar()),
+                      SliverToBoxAdapter(
+                        child: Column(
+                          children: [
+                            const Divider(height: 1),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.calendar_today, size: 18, color: Colors.green),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    DateFormat('EEEE, dd/MM/yyyy', 'vi').format(_selectedDate),
+                                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                                   ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SliverPersistentHeader(
+                        pinned: true,
+                        delegate: _TabBarHeaderDelegate(
+                          TabBar(
+                            controller: _tabController,
+                            isScrollable: _subCourts.length > 3,
+                            labelColor: Colors.green.shade800,
+                            unselectedLabelColor: Colors.grey,
+                            indicatorColor: Colors.green,
+                            tabs: _subCourts.map((sc) {
+                              final slots = _timeslotsMap[sc.id] ?? [];
+                              final sortedSlots = _sortSlots(slots);
+                              final freeCount = sortedSlots.where((s) => !s.isBooked && !_isSlotPast(s)).length;
+                              return Tab(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(sc.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    Text('$freeCount trống', style: const TextStyle(fontSize: 10)),
+                                  ],
                                 ),
-                              ),
-                            ],
+                              );
+                            }).toList(),
                           ),
-                        ],
+                        ),
                       ),
-                    ),
+                    ];
+                  },
+                  body: _isLoadingSlots
+                      ? const Center(child: CircularProgressIndicator())
+                      : TabBarView(
+                          controller: _tabController,
+                          children: _subCourts.map((sc) {
+                            final slots = _sortSlots(_timeslotsMap[sc.id] ?? []);
+                            if (slots.isEmpty) {
+                              return const Center(child: Text('Không có khung giờ'));
+                            }
+                            return Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final crossAxisCount = constraints.maxWidth < 380 ? 2 : 3;
+                                  final childAspectRatio = crossAxisCount == 2 ? 1.85 : 1.55;
 
-                    // ===== LỊCH =====
-                    _buildCalendar(),
-                    const Divider(height: 1),
-
-                    // ===== HEADER NGÀY ĐÃ CHỌN =====
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.calendar_today, size: 18, color: Colors.green),
-                          const SizedBox(width: 8),
-                          Text(
-                            DateFormat('EEEE, dd/MM/yyyy', 'vi').format(_selectedDate),
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // ===== TAB SUB-COURTS =====
-                    TabBar(
-                      controller: _tabController,
-                      isScrollable: _subCourts.length > 3,
-                      labelColor: Colors.green.shade800,
-                      unselectedLabelColor: Colors.grey,
-                      indicatorColor: Colors.green,
-                      tabs: _subCourts.map((sc) {
-                        final slots = _timeslotsMap[sc.id] ?? [];
-                        final sortedSlots = _sortSlots(slots);
-                        final freeCount = sortedSlots.where((s) => !s.isBooked && !_isSlotPast(s)).length;
-                        return Tab(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(sc.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                              Text(
-                                "$freeCount trống",
-                                style: const TextStyle(fontSize: 10),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ),
-
-                    // ===== DANH SÁCH KHUNG GIỜ =====
-                    Expanded(
-                      child: _isLoadingSlots
-                          ? const Center(child: CircularProgressIndicator())
-                          : TabBarView(
-                              controller: _tabController,
-                              children: _subCourts.map((sc) {
-                                final slots = _sortSlots(_timeslotsMap[sc.id] ?? []);
-                                if (slots.isEmpty) {
-                                  return const Center(child: Text("Không có khung giờ"));
-                                }
-                                return Padding(
-                                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                                  child: GridView.builder(
-                                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 3,
-                                      mainAxisSpacing: 8,
-                                      crossAxisSpacing: 8,
-                                      childAspectRatio: 2.2,
+                                  return GridView.builder(
+                                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: crossAxisCount,
+                                      mainAxisSpacing: 10,
+                                      crossAxisSpacing: 10,
+                                      childAspectRatio: childAspectRatio,
                                     ),
                                     itemCount: slots.length,
-                                    itemBuilder: (context, index) {
-                                      return _buildSlotTile(slots[index]);
-                                    },
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                    ),
-                  ],
+                                    itemBuilder: (context, index) => _buildSlotTile(slots[index]),
+                                  );
+                                },
+                              ),
+                            );
+                          }).toList(),
+                        ),
                 ),
     );
   }
@@ -402,6 +570,36 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> with SingleTicker
 
   // ==================== HELPERS ====================
 
+  Widget _buildPriceTag(String label, double price, Color color) {
+    final formatted = _formatPrice(price);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          formatted,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatPrice(double price) {
+    if (price >= 1000) {
+      return '${(price / 1000).toStringAsFixed(0)}k/h';
+    }
+    return '${price.toStringAsFixed(0)}/h';
+  }
+
   int _parseTimeToMinutes(String time) {
     final parts = time.split(':');
     return int.parse(parts[0]) * 60 + int.parse(parts[1]);
@@ -507,9 +705,10 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> with SingleTicker
               );
             },
       child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         decoration: BoxDecoration(
           color: bgColor,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: borderColor),
         ),
         child: Column(
@@ -517,6 +716,7 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> with SingleTicker
           children: [
             Text(
               "${slot.startTime} - ${slot.endTime}",
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -524,13 +724,50 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> with SingleTicker
                 decoration: isPast ? TextDecoration.lineThrough : null,
               ),
             ),
-            Text(
-              label,
-              style: TextStyle(fontSize: 11, color: textColor),
-            ),
+            const SizedBox(height: 4),
+            Text(label, style: TextStyle(fontSize: 10, color: textColor)),
+            if (!isPast) ...[
+              const SizedBox(height: 4),
+              Text(
+                _formatPrice(
+                  widget.court.priceForHour(
+                    int.parse(slot.startTime.split(':')[0]),
+                  ),
+                ),
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
+}
+
+class _TabBarHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final TabBar tabBar;
+
+  _TabBarHeaderDelegate(this.tabBar);
+
+  @override
+  double get minExtent => tabBar.preferredSize.height;
+
+  @override
+  double get maxExtent => tabBar.preferredSize.height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Material(
+      color: Colors.white,
+      elevation: overlapsContent ? 1 : 0,
+      child: tabBar,
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _TabBarHeaderDelegate oldDelegate) => oldDelegate.tabBar != tabBar;
 }
